@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MAGI // DANIO-00 No-Bubble Clinostat Simulator</title>
+  <style>
+    :root {
+      --bg: #06070a;
+      --panel: #0d1017;
+      --orange: #ff8c00;
+      --amber: #ffb703;
+      --green: #39ff14;
+      --magenta: #ff0055;
+      --cyan: #00f5d4;
+      --purple: #b5179e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Courier New", Courier, monospace; }
+    body {
+      background: var(--bg); color: var(--orange); min-height: 100vh;
+      display: flex; flex-direction: column; padding: 12px;
+      background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0.35) 1px, transparent 1px, transparent 3px);
+    }
+    header {
+      border: 2px solid var(--orange); padding: 8px 14px; display: flex;
+      justify-content: space-between; align-items: center; background: #0b0d13;
+      box-shadow: 0 0 14px rgba(255, 140, 0, 0.25); margin-bottom: 10px;
+    }
+    .title { font-weight: 900; letter-spacing: 1px; font-size: 15px; }
+    .status { color: var(--green); font-weight: 700; font-size: 13px; text-shadow: 0 0 8px rgba(57,255,20,0.5); }
+    main { display: grid; grid-template-columns: 1fr 360px; gap: 12px; flex: 1; }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+    .crt-box {
+      border: 1px solid var(--orange); background: #040507; padding: 12px;
+      display: flex; align-items: center; justify-content: center; overflow: auto;
+      box-shadow: inset 0 0 30px rgba(255, 140, 0, 0.08);
+    }
+    pre#ascii-screen { font-size: 13px; line-height: 1.18; font-weight: 700; user-select: none; white-space: pre; }
+    .deck {
+      border: 1px solid var(--orange); background: var(--panel); padding: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .sec-hdr { color: var(--amber); font-weight: 900; text-align: center; border-bottom: 1px dashed rgba(255,183,3,0.4); padding-bottom: 4px; font-size: 13px; }
+    .btn-row { display: flex; gap: 6px; }
+    button {
+      flex: 1; background: #141923; color: var(--orange); border: 1px solid var(--orange);
+      padding: 7px 8px; font-weight: 800; font-size: 12px; cursor: pointer; transition: 0.12s;
+    }
+    button:hover { background: var(--orange); color: #000; box-shadow: 0 0 10px var(--orange); }
+    button.green { color: var(--green); border-color: var(--green); }
+    button.green:hover { background: var(--green); color: #000; box-shadow: 0 0 10px var(--green); }
+    button.cyan { color: var(--cyan); border-color: var(--cyan); }
+    button.cyan:hover { background: var(--cyan); color: #000; }
+    button.magenta { color: var(--magenta); border-color: var(--magenta); }
+    button.magenta:hover { background: var(--magenta); color: #fff; }
+    .param-group { font-size: 11px; color: #cbd5e1; }
+    .stepper { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+    .stepper button { flex: 0 0 46px; padding: 4px; }
+    .val-readout {
+      flex: 1; text-align: center; background: #06080c; color: var(--cyan);
+      padding: 5px; border: 1px solid #1e293b; font-weight: 800; font-size: 12px;
+    }
+    #telem {
+      background: #050609; border: 1px solid #222938; padding: 9px;
+      color: var(--green); font-size: 11.5px; line-height: 1.5; white-space: pre; flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">◢◤ NERV BIO-FLUIDICS // MAGI-01 // ZERO-HEADSPACE ZEBRAFISH SIMULATOR</div>
+    <div id="hdr-status" class="status">[ PATTERN BLUE // READY ]</div>
+  </header>
+  <main>
+    <div class="crt-box"><pre id="ascii-screen"></pre></div>
+    <div class="deck">
+      <div class="sec-hdr">━━ TACTICAL COMMAND DECK ━━</div>
+      <div class="btn-row">
+        <button id="btn-run" class="green">▶ LAUNCH SIM</button>
+        <button id="btn-rst" class="cyan">⟲ RESET TUBE</button>
+      </div>
+      <div class="btn-row">
+        <button id="btn-opt">⚡ OPTIMAL (3/2.61)</button>
+        <button id="btn-trap" class="magenta">⚠ TRAP (3.0/3.0)</button>
+      </div>
+
+      <div class="param-group">OUTER FRAME SPEED [RPM]
+        <div class="stepper"><button onclick="adj('rpm1',-0.1)">[-]</button><div id="v-rpm1" class="val-readout">3.00 RPM</div><button onclick="adj('rpm1',0.1)">[+]</button></div>
+      </div>
+      <div class="param-group">INNER CORE SPEED [RPM]
+        <div class="stepper"><button onclick="adj('rpm2',-0.05)">[-]</button><div id="v-rpm2" class="val-readout">2.61 RPM</div><button onclick="adj('rpm2',0.05)">[+]</button></div>
+      </div>
+      <div class="param-group">METHYLCELLULOSE CONC. [% w/v]
+        <div class="stepper"><button onclick="adj('mc',-0.25)">[-]</button><div id="v-mc" class="val-readout">2.00 %</div><button onclick="adj('mc',0.25)">[+]</button></div>
+      </div>
+      <div class="param-group">TUBE RACK OFFSET [CM]
+        <div class="stepper"><button onclick="adj('off',-0.5)">[-]</button><div id="v-off" class="val-readout">2.0 cm</div><button onclick="adj('off',0.5)">[+]</button></div>
+      </div>
+      <div class="param-group">TIME WARP MULTIPLIER
+        <div class="stepper"><button onclick="adjWarp(0.5)">[÷2]</button><div id="v-warp" class="val-readout" style="color:var(--amber)">16x REALTIME</div><button onclick="adjWarp(2)">[×2]</button></div>
+      </div>
+
+      <div class="sec-hdr" style="margin-top:4px;">━━ MAGI LIVE TELEMETRY ━━</div>
+      <div id="telem"></div>
+    </div>
+  </main>
+
+  <script>
+    // Identical Physics to src/physics.py (Zero-Bubble Creeping Stokes + 2-Axis CoSE Gyro)
+    const state = {
+      rpm1: 3.00, rpm2: 2.61, mc: 2.00, off: 2.0, warp: 16,
+      running: true, t: 0, pos: [0, 0, 0], gAcc: [0, 0, 0], gN: 0,
+      gUnit: [0, 0, -1], gAvg: 1.0, shear: 0.15, clear: 4.7, hit: false, trail: []
+    };
+
+    const eta0 = () => 0.045 * Math.exp(1.44 * state.mc);
+    const tubeRadM = (zM) => {
+      const zMM = zM * 1e3;
+      if (zMM <= -2.0) return (1.2 + Math.max(0, Math.min(1, (zMM + 20.0) / 18.0)) * 3.8) * 1e-3;
+      return 5.0e-3;
+    };
+
+    function stepPhysics(dt) {
+      const w1 = state.rpm1 * 2 * Math.PI / 60, w2 = state.rpm2 * 2 * Math.PI / 60;
+      const c1 = Math.cos(w1 * state.t), s1 = Math.sin(w1 * state.t);
+      const c2 = Math.cos(w2 * state.t), s2 = Math.sin(w2 * state.t);
+
+      // Lab gravity [0, 0, -9.80665] rotated into tube frame via (Rx * Ry)^T
+      const gLabZ = -9.80665;
+      const gx1 = 0, gy1 = s1 * gLabZ, gz1 = c1 * gLabZ;
+      const gTube = [c2 * gx1 - s2 * gz1, gy1, s2 * gx1 + c2 * gz1];
+
+      const omTube = [c2 * w1, w2, s2 * w1];
+      const alTube = [-s2 * w1 * w2, 0, c2 * w1 * w2];
+
+      const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+      const eta = eta0(), rhoF = 1005.0, rhoFish = 1007.0;
+      const rW = tubeRadM(state.pos[2]);
+      const rXY = Math.hypot(state.pos[0], state.pos[1]);
+      const damp = Math.max(0, 1 - Math.pow(rXY / rW, 2));
+      const alXr = cross(alTube, state.pos);
+      const uBg = alXr.map(v => -0.25 * (rhoF / eta) * v * rW * rW * damp);
+      const rLocal = Math.max(0.3e-3, Math.hypot(...state.pos));
+      const tauEulerPa = 0.5 * rhoF * Math.hypot(...alTube) * rLocal;
+
+      const rTot = [state.off * 1e-2 + state.pos[0], state.pos[1], state.pos[2]];
+      const aCent = cross(omTube, cross(omTube, rTot));
+      const aEul = cross(alTube, rTot);
+      const aEff = [gTube[0]-aCent[0]-aEul[0], gTube[1]-aCent[1]-aEul[1], gTube[2]-aCent[2]-aEul[2]];
+
+      // Ellipsoidal Stokes drag (4.0 mm length, 0.6 mm width)
+      const a = 2.0e-3, b = 0.3e-3, vol = (4/3)*Math.PI*a*b*b;
+      const ecc = Math.sqrt(1 - (b/a)*(b/a)), L = Math.log((1+ecc)/(1-ecc));
+      const kPar = 16*Math.PI*eta*a*Math.pow(ecc,3)/((1+ecc*ecc)*L - 2*ecc);
+      const kPerp = 32*Math.PI*eta*a*Math.pow(ecc,3)/((3*ecc*ecc-1)*L + 2*ecc);
+      const vSlip = [(rhoFish-rhoF)*vol*aEff[0]/kPerp, (rhoFish-rhoF)*vol*aEff[1]/kPerp, (rhoFish-rhoF)*vol*aEff[2]/kPar];
+
+      for (let i = 0; i < 3; i++) state.pos[i] += (uBg[i] + vSlip[i]) * dt;
+
+      const pad = 0.3e-3;
+      if (state.pos[2] < -20e-3 + pad) { state.pos[2] = -20e-3 + pad; state.hit = true; }
+      if (state.pos[2] >  18e-3 - pad) { state.pos[2] =  18e-3 - pad; state.hit = true; }
+      const rAllow = Math.max(1e-5, tubeRadM(state.pos[2]) - pad);
+      const nrXY = Math.hypot(state.pos[0], state.pos[1]);
+      if (nrXY > rAllow) { state.pos[0] *= rAllow/nrXY; state.pos[1] *= rAllow/nrXY; state.hit = true; }
+
+      state.t += dt;
+      state.gUnit = gTube.map(v => v / 9.80665);
+      for (let i = 0; i < 3; i++) state.gAcc[i] += state.gUnit[i];
+      state.gN++;
+      state.gAvg = Math.hypot(...state.gAcc.map(v => v / state.gN));
+      const fBuoyMag = Math.abs(rhoFish - rhoF) * vol * Math.hypot(...aEff);
+      state.shear = (fBuoyMag / (Math.PI * Math.PI * a * b) + tauEulerPa) * 1e3;
+      state.slipUMs = Math.hypot(...vSlip) * 1e6;
+      state.clear = Math.max(0, (tubeRadM(state.pos[2]) - Math.min(nrXY, rAllow) - pad) * 1e3);
+      if (state.gN % 5 === 0) {
+        state.trail.push([state.pos[0]*1e3, state.pos[2]*1e3]);
+        if (state.trail.length > 140) state.trail.shift();
+      }
+    }
+
+    function adj(k, d) {
+      const lim = { rpm1:[0,20], rpm2:[0,20], mc:[0.5,4], off:[0,8] }[k];
+      state[k] = Math.max(lim[0], Math.min(lim[1], +(state[k] + d).toFixed(2)));
+      if (k === 'rpm1' || k === 'rpm2') { state.gAcc = [0,0,0]; state.gN = 0; }
+      syncUI();
+    }
+    function adjWarp(f) { state.warp = Math.max(1, Math.min(512, Math.round(state.warp * f))); syncUI(); }
+    function resetTube() {
+      state.t = 0; state.pos = [0,0,0]; state.gAcc = [0,0,0]; state.gN = 0;
+      state.hit = false; state.trail = []; syncUI();
+    }
+    function syncUI() {
+      document.getElementById('v-rpm1').textContent = state.rpm1.toFixed(2) + ' RPM';
+      document.getElementById('v-rpm2').textContent = state.rpm2.toFixed(2) + ' RPM';
+      document.getElementById('v-mc').textContent = state.mc.toFixed(2) + ' %';
+      document.getElementById('v-off').textContent = state.off.toFixed(1) + ' cm';
+      document.getElementById('v-warp').textContent = state.warp + 'x REALTIME';
+    }
+    document.getElementById('btn-run').onclick = (e) => {
+      state.running = !state.running;
+      e.target.textContent = state.running ? '⏸ PAUSE SIM' : '▶ RESUME SIM';
+    };
+    document.getElementById('btn-rst').onclick = resetTube;
+    document.getElementById('btn-opt').onclick = () => { state.rpm1 = 3.00; state.rpm2 = 2.61; resetTube(); };
+    document.getElementById('btn-trap').onclick = () => { state.rpm1 = 3.00; state.rpm2 = 3.00; resetTube(); };
+    syncUI();
+
+    function renderASCII() {
+      const C = 72, R = 30;
+      const g = Array.from({length: R}, () => Array(C).fill(' '));
+      const c = Array.from({length: R}, () => Array(C).fill('#ff8c00'));
+      const put = (r, colIdx, str, hex) => {
+        if (r < 0 || r >= R) return;
+        for (let i = 0; i < str.length; i++) if (colIdx+i >= 0 && colIdx+i < C) { g[r][colIdx+i] = str[i]; c[r][colIdx+i] = hex; }
+      };
+
+      put(0, 3, '◢ TUBE MICRO-TRACKER (X-Z) ◣', '#ff8c00');
+      put(1, 5, '[ZERO-BUBBLE SINGLE PHASE]', '#00f5d4');
+      const cx = 20;
+      put(2, cx - 11, '╔═════════════════════╗', '#ff8c00');
+      for (let r = 3; r <= 26; r++) {
+        const zMM = 18.0 - ((r - 3) / 23.0) * 38.0;
+        const rMM = tubeRadM(zMM * 1e-3) * 1e3;
+        const hw = Math.max(2, Math.round((rMM / 5.0) * 10));
+        for (let x = cx - hw + 1; x < cx + hw; x++) if ((r + x) % 5 === 0) put(r, x, '·', '#1b3a36');
+        put(r, cx - hw, zMM > -2 ? '║' : '╲', '#ff8c00');
+        put(r, cx + hw, zMM > -2 ? '║' : '╱', '#ff8c00');
+      }
+      put(27, cx - 2, '╰───╯', '#ff8c00');
+
+      for (const [tx, tz] of state.trail) {
+        const tc = cx + Math.round((tx / 5.0) * 10), tr = 3 + Math.round(((18.0 - tz) / 38.0) * 23);
+        if (tr >= 3 && tr <= 26) put(tr, tc, '∙', '#b5179e');
+      }
+      const fc = cx + Math.round((state.pos[0]*1e3 / 5.0) * 10);
+      const fr = 3 + Math.round(((18.0 - state.pos[2]*1e3) / 38.0) * 23);
+      const fCol = state.hit ? '#ff0055' : '#39ff14';
+      put(fr - 1, fc - 1, '°▲°', fCol); put(fr, fc, '█', fCol); put(fr + 1, fc, '▾', fCol);
+
+      // Right Gyro
+      put(0, 41, '◢ CoSE 2-AXIS GYRO & g(t) ◣', '#ff8c00');
+      const gx = 54, gy = 9;
+      const a1 = state.rpm1 * 2 * Math.PI / 60 * state.t, a2 = state.rpm2 * 2 * Math.PI / 60 * state.t;
+      for (let d = 0; d < 360; d += 15) {
+        const rad = d * Math.PI / 180;
+        put(Math.round(gy + 5 * Math.sin(rad) * Math.cos(a1)), Math.round(gx + 11 * Math.cos(rad)), '○', '#ffb703');
+        put(Math.round(gy + 3.8 * Math.sin(rad)), Math.round(gx + 8 * Math.cos(rad) * Math.cos(a2)), '•', '#00f5d4');
+      }
+      for (let s = 1; s <= 5; s++) {
+        put(Math.round(gy - state.gUnit[2]*s*0.9), Math.round(gx + state.gUnit[0]*s*1.8), s===5?'★':'═', '#ff0055');
+      }
+      put(gy, gx, '⊕', '#39ff14');
+
+      put(17, 41, '◢ LATERAL-LINE SHEAR [mPa] ◣', '#ff8c00');
+      const b1 = Math.max(0, Math.min(24, Math.round(((Math.log10(Math.max(0.1, state.shear)) + 1) / 3) * 24)));
+      put(19, 42, '[' + '█'.repeat(b1) + '░'.repeat(24 - b1) + ']', state.shear < 15 ? '#39ff14' : '#ff0055');
+      put(20, 42, '0.1        1.0     10    100mPa', '#94a3b8');
+
+      put(22, 41, '◢ CUMULATIVE |<g>| VECTOR ◣', '#ff8c00');
+      const b2 = Math.max(0, Math.min(24, Math.round(((Math.log10(Math.max(1e-4, state.gAvg)) + 4) / 4) * 24)));
+      put(24, 42, '[' + '█'.repeat(b2) + '░'.repeat(24 - b2) + ']', state.gAvg < 0.02 ? '#39ff14' : '#ff0055');
+      put(25, 42, '10⁻⁴g    10⁻²g    10⁻¹g    1g', '#94a3b8');
+
+      if (state.hit) put(28, 4, '▒▒ WARNING: WALL CONTACT! INCREASE MC% OR REDUCE RACK OFFSET ▒▒', '#ff0055');
+      else if (Math.abs(state.rpm1 - state.rpm2) < 0.02 && state.rpm1 > 0) put(28, 4, '▒▒ MAGI ALERT: 1:1 RPM PHASE-LOCK! GRAVITY NEVER AVERAGES TO 0g ▒▒', '#ff0055');
+      else put(28, 4, '── CREEPING STOKES REGIME LOCKED (Re << 1) // DEGASSED CONTROL ──', '#39ff14');
+
+      let html = '';
+      for (let r = 0; r < R; r++) {
+        let curCol = c[r][0], buf = '';
+        for (let x = 0; x < C; x++) {
+          if (c[r][x] !== curCol) { html += `<span style="color:${curCol}">${buf}</span>`; curCol = c[r][x]; buf = ''; }
+          buf += g[r][x];
+        }
+        html += `<span style="color:${curCol}">${buf}</span>
+`;
+      }
+      document.getElementById('ascii-screen').innerHTML = html;
+
+      const sec = Math.floor(state.t % 60), min = Math.floor((state.t / 60) % 60), hr = Math.floor(state.t / 3600);
+      const fx = state.pos[0]*1e3, fy = state.pos[1]*1e3, fz = state.pos[2]*1e3;
+      document.getElementById('telem').textContent =
+        `SIM TIME       : ${String(hr).padStart(2,'0')}h ${String(min).padStart(2,'0')}m ${String(sec).padStart(2,'0')}s
+` +
+        `VISCOSITY (η0) : ${eta0().toFixed(2)} Pa·s
+` +
+        `──────────────────────────────
+` +
+        `FISH X, Y      : ${fx>=0?'+':''}${fx.toFixed(3)}, ${fy>=0?'+':''}${fy.toFixed(3)} mm
+` +
+        `FISH Z         : ${fz>=0?'+':''}${fz.toFixed(3)} mm
+` +
+        `NET 3D DRIFT   : ${(Math.hypot(fx,fy,fz)*1000).toFixed(1)} µm
+` +
+        `WALL CLEARANCE : ${state.clear.toFixed(2)} mm
+` +
+        `──────────────────────────────
+` +
+        `CUMULATIVE |<g>|: ${state.gAvg.toFixed(4)} g
+` +
+        `SKIN SHEAR     : ${state.shear.toFixed(3)} mPa
+` +
+        `WALL CONTACT   : ${state.hit ? 'YES (WARNING)' : 'NONE (SAFE)'}`;
+    }
+
+    setInterval(() => {
+      if (state.running) {
+        const tot = 0.04 * state.warp, n = Math.max(1, Math.ceil(tot / 0.4));
+        for (let i = 0; i < n; i++) stepPhysics(tot / n);
+      }
+      renderASCII();
+    }, 40);
+  </script>
+</body>
+</html>
